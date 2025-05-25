@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sitemap URL Extractor</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #166088;
+            --background-color: #f8f9fa;
+            --sidebar-color: #e9ecef;
+            --text-color: #333;
+            --error-color: #dc3545;
+            --warning-color: #ffc107;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 250px;
+            background-color: var(--sidebar-color);
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: var(--secondary-color);
+            margin-top: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .download-btn {
+            background-color: #28a745;
+            margin-bottom: 20px;
+        }
+
+        .download-btn:hover {
+            background-color: #218838;
+        }
+
+        .url-display {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: var(--error-color);
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            color: var(--warning-color);
+            border: 1px solid #ffeeba;
+        }
+
+        .copy-btn {
+            background-color: #6c757d;
+            margin-top: 10px;
+        }
+
+        .copy-btn:hover {
+            background-color: #5a6268;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                box-shadow: none;
+                border-bottom: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>About This Tool</h2>
+        <p>
+            This is a Sitemap URL Extractor tool that allows you to:
+        </p>
+        <ul>
+            <li>Extract URLs from sitemaps</li>
+            <li>Parse XML sitemaps online</li>
+            <li>Generate a list of all URLs in a sitemap</li>
+        </ul>
+        <p>
+            <strong>Keywords:</strong> sitemap extractor, extract urls from sitemap, url extractor online
+        </p>
+        <h3>How to use:</h3>
+        <ol>
+            <li>Enter the sitemap URL in the main panel</li>
+            <li>Click 'Fetch URLs'</li>
+            <li>View the extracted URLs and download the CSV file</li>
+        </ol>
+    </div>
+
+    <div class="main-content">
+        <h1>Sitemap URL Extractor</h1>
+        
+        <div class="input-group">
+            <label for="sitemapUrl">Enter the sitemap URL:</label>
+            <input type="text" id="sitemapUrl" placeholder="https://example.com/sitemap.xml">
+        </div>
+        
+        <button id="fetchBtn">Fetch URLs</button>
+        
+        <div id="downloadSection" style="display: none;">
+            <button id="downloadBtn" class="download-btn">Download CSV</button>
+        </div>
+        
+        <div id="errorDisplay" class="alert" style="display: none;"></div>
+        
+        <div id="resultSection" style="display: none;">
+            <h2>Parsed URLs:</h2>
+            <div class="url-display" id="urlDisplay"></div>
+            <button id="copyBtn" class="copy-btn">Copy URLs to Clipboard</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const fetchBtn = document.getElementById('fetchBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const copyBtn = document.getElementById('copyBtn');
+            const sitemapUrlInput = document.getElementById('sitemapUrl');
+            const urlDisplay = document.getElementById('urlDisplay');
+            const downloadSection = document.getElementById('downloadSection');
+            const resultSection = document.getElementById('resultSection');
+            const errorDisplay = document.getElementById('errorDisplay');
+
+            fetchBtn.addEventListener('click', fetchSitemapUrls);
+            downloadBtn.addEventListener('click', downloadCSV);
+            copyBtn.addEventListener('click', copyToClipboard);
+
+            async function fetchSitemapUrls() {
+                const sitemapUrl = sitemapUrlInput.value.trim();
+
+                if (!sitemapUrl) {
+                    showError('Please enter a sitemap URL');
+                    return;
+                }
+
+                // Clear previous results
+                hideError();
+                resultSection.style.display = 'none';
+                downloadSection.style.display = 'none';
+
+                // Show loading state
+                fetchBtn.disabled = true;
+                fetchBtn.textContent = 'Fetching...';
+
+                // Use a CORS proxy to avoid CORS issues
+                const proxyUrl = 'https://api.allorigins.win/get?url=';
+
+                $.getJSON(proxyUrl + encodeURIComponent(sitemapUrl), function (data) {
+                    const xmlContent = data.contents;
+
+                    if (!xmlContent) {
+                        showError('No content returned from the sitemap');
+                        fetchBtn.disabled = false;
+                        fetchBtn.textContent = 'Fetch URLs';
+                        return;
+                    }
+
+                    // Parse the XML content
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+
+                    // Check for XML errors
+                    const parserError = xmlDoc.getElementsByTagName("parsererror");
+                    if (parserError.length > 0) {
+                        showError('Invalid XML format in sitemap');
+                        fetchBtn.disabled = false;
+                        fetchBtn.textContent = 'Fetch URLs';
+                        return;
+                    }
+
+                    // Extract URLs
+                    const urlElements = xmlDoc.getElementsByTagName('loc');
+                    const urls = Array.from(urlElements).map(el => el.textContent);
+
+                    if (urls.length === 0) {
+                        showWarning('No URLs found in the sitemap');
+                        fetchBtn.disabled = false;
+                        fetchBtn.textContent = 'Fetch URLs';
+                        return;
+                    }
+
+                    // Display results
+                    displayResults(urls, sitemapUrl);
+                    fetchBtn.disabled = false;
+                    fetchBtn.textContent = 'Fetch URLs';
+                }).fail(function () {
+                    showError('Failed to fetch sitemap (network or CORS error)');
+                    fetchBtn.disabled = false;
+                    fetchBtn.textContent = 'Fetch URLs';
+                });
+            }
+            
+            function displayResults(urls, sitemapUrl) {
+                // Generate filename from URL
+                const domain = new URL(sitemapUrl).hostname;
+                const filename = `${domain}_url_list.csv`;
+                
+                // Store data for download
+                downloadBtn.setAttribute('data-filename', filename);
+                downloadBtn.setAttribute('data-content', urls.join('\n'));
+                
+                // Display URLs
+                urlDisplay.textContent = urls.join('\n');
+                
+                // Show sections
+                downloadSection.style.display = 'block';
+                resultSection.style.display = 'block';
+            }
+            
+            function downloadCSV() {
+                const filename = downloadBtn.getAttribute('data-filename');
+                const content = downloadBtn.getAttribute('data-content');
+                
+                const blob = new Blob([content], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            function copyToClipboard() {
+                const text = urlDisplay.textContent;
+                navigator.clipboard.writeText(text).then(() => {
+                    // Show temporary feedback
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 2000);
+                });
+            }
+            
+            function showError(message) {
+                errorDisplay.textContent = message;
+                errorDisplay.className = 'alert alert-error';
+                errorDisplay.style.display = 'block';
+            }
+            
+            function showWarning(message) {
+                errorDisplay.textContent = message;
+                errorDisplay.className = 'alert alert-warning';
+                errorDisplay.style.display = 'block';
+            }
+            
+            function hideError() {
+                errorDisplay.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
